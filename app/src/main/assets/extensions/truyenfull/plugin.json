@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "TruyenFull",
+    "author": "VReader",
+    "version": 1,
+    "source": "https://truyenfull.vision",
+    "regexp": "truyenfull.vision",
+    "description": "Truyện chữ tiếng Việt",
+    "locale": "vi_VN",
+    "tag": "",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home",
+    "detail": "detail",
+    "search": "search",
+    "toc": "toc",
+    "chap": "chap"
+  }
+}
