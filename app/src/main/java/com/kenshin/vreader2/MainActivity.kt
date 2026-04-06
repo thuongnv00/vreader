@@ -11,6 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.History
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -39,12 +44,29 @@ sealed class Screen(val route: String) {
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        // Kết quả xin quyền
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        askNotificationPermission()
         setContent {
             VReader2Theme {
                 VReaderAppContent()
+            }
+        }
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
@@ -65,7 +87,8 @@ fun VReaderAppContent() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            val showBottomBar = currentRoute?.startsWith("reader/") != true
+            val showBottomBar = currentRoute?.startsWith("reader/") != true &&
+                                currentRoute?.startsWith("manga/") != true
             if (showBottomBar) {
                 NavigationBar {
                     bottomNavItems.forEach { (screen, label, icon) ->
@@ -96,7 +119,8 @@ fun VReaderAppContent() {
             composable(Screen.Library.route) {
                 LibraryScreen(
                     onMangaClick = { manga ->
-                        navController.navigate(Screen.MangaDetail.createRoute(manga.id))
+                        val encodedId = java.net.URLEncoder.encode(manga.id, "UTF-8")
+                        navController.navigate(Screen.MangaDetail.createRoute(encodedId))
                     }
                 )
             }

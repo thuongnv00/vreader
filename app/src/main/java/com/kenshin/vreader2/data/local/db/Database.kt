@@ -35,6 +35,14 @@ data class ChapterEntity(
     val fetchedAt: Long,
 )
 
+@Entity(tableName = "chapter_content")
+data class ChapterContentEntity(
+    @PrimaryKey val chapterId: String,
+    val htmlContent: String,
+    val textContent: String,
+    val fetchedAt: Long = System.currentTimeMillis(),
+)
+
 @Entity(tableName = "history")
 data class HistoryEntity(
     @PrimaryKey val chapterId: String,
@@ -72,10 +80,10 @@ interface MangaDao {
 
 @Dao
 interface ChapterDao {
-    @Query("SELECT * FROM chapter WHERE mangaId = :mangaId ORDER BY number DESC")
+    @Query("SELECT * FROM chapter WHERE mangaId = :mangaId ORDER BY number ASC")
     fun observeChapters(mangaId: String): Flow<List<ChapterEntity>>
 
-    @Query("SELECT * FROM chapter WHERE mangaId = :mangaId ORDER BY number DESC")
+    @Query("SELECT * FROM chapter WHERE mangaId = :mangaId ORDER BY number ASC")
     suspend fun getChaptersByManga(mangaId: String): List<ChapterEntity>
 
     @Query("SELECT * FROM chapter WHERE id = :id")
@@ -92,6 +100,17 @@ interface ChapterDao {
 
     @Query("SELECT COUNT(*) FROM chapter WHERE mangaId = :mangaId AND isRead = 0")
     suspend fun countUnread(mangaId: String): Int
+
+    // ── Chapter Content (Offline) ─────────────────────────────────────────────
+
+    @Upsert
+    suspend fun upsertChapterContent(content: ChapterContentEntity)
+
+    @Query("SELECT * FROM chapter_content WHERE chapterId = :chapterId")
+    suspend fun getChapterContent(chapterId: String): ChapterContentEntity?
+
+    @Query("DELETE FROM chapter_content WHERE chapterId = :chapterId")
+    suspend fun deleteChapterContent(chapterId: String)
 }
 
 @Dao
@@ -104,8 +123,13 @@ interface HistoryDao {
 }
 
 @Database(
-    entities = [MangaEntity::class, ChapterEntity::class, HistoryEntity::class],
-    version = 1,
+    entities = [
+        MangaEntity::class,
+        ChapterEntity::class,
+        HistoryEntity::class,
+        ChapterContentEntity::class
+    ],
+    version = 2,
     exportSchema = true,
 )
 abstract class VReaderDatabase : RoomDatabase() {

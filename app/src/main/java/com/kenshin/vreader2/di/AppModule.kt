@@ -50,6 +50,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VReaderDatabase =
         Room.databaseBuilder(context, VReaderDatabase::class.java, "vreader.db")
+            .fallbackToDestructiveMigration()
             .build()
 
     @Provides

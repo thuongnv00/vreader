@@ -123,7 +123,7 @@ class JsSource(
                 ))
             }
         }
-        chapters.reversed()
+        chapters.asReversed()
     }
 
     override suspend fun fetchPageList(chapter: Chapter): List<Page> = withContext(Dispatchers.IO) {

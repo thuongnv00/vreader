@@ -54,8 +54,17 @@ class MangaRepository @Inject constructor(
         val source = sourceManager.get(manga.sourceId.toLong())
             ?: error("Source not found")
         val detail = source.fetchMangaDetails(manga)
-        mangaDao.upsertManga(detail.toEntity())
-        return detail
+        
+        // Lấy dữ liệu cũ trong DB để giữ lại trạng thái Library/Read
+        val existing = mangaDao.getMangaById(manga.id)
+        val entity = detail.toEntity().copy(
+            inLibrary   = existing?.inLibrary ?: false,
+            unreadCount = existing?.unreadCount ?: 0,
+            lastReadAt  = existing?.lastReadAt ?: 0
+        )
+        
+        mangaDao.upsertManga(entity)
+        return entity.toDomain()
     }
 
     suspend fun getMangaById(id: String): Manga? =
@@ -76,7 +85,20 @@ class MangaRepository @Inject constructor(
         val source = sourceManager.get(manga.sourceId.toLong())
             ?: error("Source not found")
         val chapters = source.fetchChapterList(manga)
-        chapterDao.upsertChapters(chapters.map { it.toEntity() })
+        
+        // Lấy danh sách chương hiện tại từ DB để giữ lại trạng thái đã tải/đã đọc
+        val existingChapters = chapterDao.getChaptersByManga(manga.id).associateBy { it.id }
+        
+        val entities = chapters.map { chapter ->
+            val existing = existingChapters[chapter.id]
+            chapter.toEntity().copy(
+                isDownloaded = existing?.isDownloaded ?: false,
+                isRead       = existing?.isRead ?: false,
+                readProgress = existing?.readProgress ?: 0
+            )
+        }
+        
+        chapterDao.upsertChapters(entities)
         mangaDao.updateUnreadCount(manga.id, chapters.count { !it.isRead })
         return chapters
     }
@@ -96,9 +118,31 @@ class MangaRepository @Inject constructor(
     }
 
     suspend fun getNovelContent(chapter: Chapter): NovelContent {
+        // Thử lấy từ offline trước
+        val offline = chapterDao.getChapterContent(chapter.id)
+        if (offline != null) {
+            return NovelContent(
+                chapterId   = offline.chapterId,
+                htmlContent = offline.htmlContent,
+                textContent = offline.textContent,
+            )
+        }
+
+        // Nếu không có offline, fetch từ source
         val source = sourceManager.get(chapter.id.substringBefore(":").toLong())
             ?: error("Source not found")
         return source.fetchNovelContent(chapter)
+    }
+
+    suspend fun saveChapterContent(content: NovelContent) {
+        chapterDao.upsertChapterContent(
+            ChapterContentEntity(
+                chapterId   = content.chapterId,
+                htmlContent = content.htmlContent,
+                textContent = content.textContent,
+            )
+        )
+        chapterDao.setDownloaded(content.chapterId, true)
     }
 
     // ── Mappers ───────────────────────────────────────────────────────────────
